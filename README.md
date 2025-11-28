@@ -1,8 +1,18 @@
-# pyCFlow
+# pyCashFlow
 
-pyCFlow is a desktop application designed for simple and transparent management of personal income and expenses. On first launch, the program creates a `cashflow.db` file (the SQLite database) and a `config.json` (the configuration file) in the same directory as the executable.
+pyCashFlow is a desktop application designed for simple and transparent management of personal income and expenses. On first launch, the program creates a `cashflow.db` file (the SQLite database) and a `config.json` (the configuration file) in the same directory as the executable.
 
 When you attach one or more files to a transaction, the program copies them to a `data_store` directory, creating a subfolder based on the transaction category. The file is renamed while preserving metadata, following the `YYYY-MM-DD-originalFileName` naming convention, to allow for easy identification and searching.
+
+## Screenshots
+
+### Windows
+
+![Screenshot Windows](doc/imgs/cf_windows.png)
+
+### Linux
+
+![Screenshot Linux](doc/imgs/cf_linux.png)
 
 ## Features
 
@@ -37,7 +47,7 @@ The main database table is `transaction`, which has the following structure:
 ## Implementation Choices
 
 - **SQLite & SQLAlchemy**: SQLite was chosen for its simplicity and portability, not requiring a dedicated server. SQLAlchemy is used as an ORM to map Python objects to the database table, simplifying queries and data management. File paths are stored as a list of strings in JSON format in the database, thanks to a custom `TypeDecorator` (`JSONEncodedList`).
-- **PyQt6**: The graphical interface is built with PyQt6. The layout is designed with Qt Designer (`.ui` file) and then converted to a Python file (`.py`), separating logic from presentation.
+- **PyQt6**: The graphical interface is built with PyQt6. The layout is designed with Qt Designer (`.ui` file) and then converted to a Python file (`.py`), separating the logic from the presentation. To download Qt Designer, we recommend using the following link: https://build-system.fman.io/qt-designer-download
 - **Configuration Management**: Categories are loaded from a `config.json` file. If the file does not exist, one is created with a list of predefined categories (e.g., `home`, `food_groceries`, `salary`, etc.), making the application easily customizable by the user.
 - **File Management**: The `FileManager` class manages attachments. Files are copied to the `data_store/{category}` folder and renamed with the date prefix (`YYYY-MM-DD-`). The `shutil.copy2` function is used to preserve the original file metadata, such as the creation date.
 

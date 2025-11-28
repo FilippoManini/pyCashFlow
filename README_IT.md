@@ -1,8 +1,18 @@
-# pyCFlow
+# pyCashFlow
 
-pyCFlow è un'applicazione desktop progettata per una gestione semplice e trasparente delle entrate e delle uscite personali. Al primo avvio, il programma crea un file `cashflow.db` (il database SQLite) e un `config.json` (il file di configurazione) nella stessa directory dell'eseguibile.
+pyCashFlow è un'applicazione desktop progettata per una gestione semplice e trasparente delle entrate e delle uscite personali. Al primo avvio, il programma crea un file `cashflow.db` (il database SQLite) e un `config.json` (il file di configurazione) nella stessa directory dell'eseguibile.
 
 Quando si allegano uno o più file a una transazione, il programma li copia in una directory `data_store`, creando una sottocartella basata sulla categoria della transazione. Il file viene rinominato preservando i metadati, seguendo la nomenclatura `YYYY-MM-DD-nomeFileOriginale`, per consentire una facile identificazione e ricerca.
+
+## Screenshots
+
+### Windows
+
+![Screenshot Windows](doc/imgs/cf_windows.png)
+
+### Linux
+
+![Screenshot Linux](doc/imgs/cf_linux.png)
 
 ## Funzionalità
 
@@ -37,7 +47,7 @@ La tabella principale del database è `transaction`, che ha la seguente struttur
 ## Scelte Implementative
 
 - **SQLite & SQLAlchemy**: SQLite è stato scelto per la sua semplicità e portabilità, non richiedendo un server dedicato. SQLAlchemy è utilizzato come ORM per mappare gli oggetti Python alla tabella del database, semplificando le query e la gestione dei dati. I percorsi dei file sono memorizzati come una lista di stringhe in formato JSON nel database, grazie a un `TypeDecorator` personalizzato (`JSONEncodedList`).
-- **PyQt6**: L'interfaccia grafica è costruita con PyQt6. Il layout è progettato con Qt Designer (`.ui` file) e poi convertito in un file Python (`.py`), separando la logica dalla presentazione.
+- **PyQt6**: L'interfaccia grafica è costruita con PyQt6. Il layout è progettato con Qt Designer (`.ui` file) e poi convertito in un file Python (`.py`), separando la logica dalla presentazione. Per scaricare Qt Designer, si consiglia di utilizzare il seguente link: https://build-system.fman.io/qt-designer-download
 - **Gestione della Configurazione**: Le categorie sono caricate da un file `config.json`. Se il file non esiste, viene creato con una lista di categorie predefinite (es. `home`, `food_groceries`, `salary`, ecc.), rendendo l'applicazione facilmente personalizzabile dall'utente.
 - **Gestione dei File**: La classe `FileManager` gestisce gli allegati. I file vengono copiati nella cartella `data_store/{categoria}` e rinominati con il prefisso della data (`YYYY-MM-DD-`). Viene utilizzata la funzione `shutil.copy2` per preservare i metadati originali del file, come la data di creazione.
 
