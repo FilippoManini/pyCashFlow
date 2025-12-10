@@ -11,9 +11,8 @@ from PyQt6.QtWidgets import (QWidget,
                              QPushButton, 
                              QMessageBox, 
                              QTableWidgetItem,
-                             QFileDialog,
-                             QSystemTrayIcon)
-from PyQt6.QtGui import QIcon
+                             QFileDialog)
+from PyQt6.QtGui import QIcon, QPixmap
 
 from main_ui import Ui_Form
 from database.sqlite_sqlalchemy import (DBManager, 
@@ -33,7 +32,6 @@ class MainWindow(QWidget):
         # Initialize the UI from a separate UI file
         self.ui = Ui_Form()
         self.ui.setupUi(self)
-        self._set_icon()
 
         # Create a database connection object
         self.db_manager = DBManager()
@@ -62,8 +60,18 @@ class MainWindow(QWidget):
         self.result_table = self.ui.tableWidget
 
         self.buttons_list = self.ui.Home.findChildren(QPushButton)
+
+        # set icon for the application
+        self.setWindowIcon(QIcon(self._set_resource_path("icons/monitoring.ico")))
         # Force black text for all buttons
         [b.setStyleSheet("color: #000000;") for b in self.buttons_list]
+        # Set icons for buttons
+        self._set_icons(self.btn_add, "icons/add.svg")
+        self._set_icons(self.btn_delete, "icons/delete.svg")
+        self._set_icons(self.btn_search, "icons/search.svg")
+        self._set_icons(self.btn_clear, "icons/clear.svg")
+        self._set_icons(self.btn_select, "icons/select.svg")
+        self._set_icons(self.btn_update, "icons/update.svg")
 
         # Change sorting via UI
         self.result_table.setSortingEnabled(True)
@@ -81,18 +89,25 @@ class MainWindow(QWidget):
         self.btn_update.clicked.connect(self.update_info)
         self.btn_clear.clicked.connect(self.clear_form_info)
 
-    def _set_icon(self):
+    def _set_resource_path(self, relative_path) -> str:
         """
-        Set the application icon according to the execution 
-        context and the PyInstaller .spec file.
+        Get the absolute path to a resource, works for development and for PyInstaller.
         """
         if getattr(sys, 'frozen', False):
-            application_path = Path(sys.executable).parent.parent
+            base_path = Path(sys.executable).parent.parent
         else:
-            application_path = Path(__file__).parent.parent
-           
-        icon_path = os.path.join(application_path, "icons", "monitoring.ico")
-        self.setWindowIcon(QIcon(icon_path))
+            base_path = Path(".")
+        
+        return os.path.join(base_path, relative_path)
+
+    def _set_icons(self, button: QPushButton, path_icon: str):
+        """
+        Set the icon for a given button.
+        """
+        icon = QIcon()
+        path_icon = self._set_resource_path(path_icon)
+        icon.addPixmap(QPixmap(path_icon), QIcon.Mode.Normal, QIcon.State.Off)
+        button.setIcon(icon)
 
     def _load_category(self):
         config = CustomConfig.load()

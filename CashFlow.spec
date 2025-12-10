@@ -5,7 +5,7 @@ a = Analysis(
     ['cash_flow\\app.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('icons', 'icons')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

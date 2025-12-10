@@ -108,12 +108,12 @@ To package the application into a single executable file, use the following PyIn
 
 Windows
 ```bash
-pyinstaller .\\cash_flow\\app.py --clean --onefile --noconsole --name CashFlow --icon icons\\monitoring.ico
+pyinstaller .\cash_flow\app.py --clean --onefile --noconsole --name CashFlow --icon icons\monitoring.ico --add-data "icons;icons"
 ```
 
 Linux
 ```bash
-pyinstaller cash_flow/app.py --clean --onefile --noconsole --name CashFlow --icon icons/monitoring.ico
+pyinstaller cash_flow/app.py --clean --onefile --noconsole --name CashFlow --icon icons/monitoring.ico --add-data "icons:icons"
 ```
 
 ## Contributing
