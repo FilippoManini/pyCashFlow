@@ -94,7 +94,7 @@ class MainWindow(QWidget):
         Get the absolute path to a resource, works for development and for PyInstaller.
         """
         if getattr(sys, 'frozen', False):
-            base_path = Path(sys.executable).parent.parent
+            base_path = getattr(sys, '_MEIPASS', Path("."))
         else:
             base_path = Path(".")
         
