@@ -28,9 +28,15 @@ DEFAULT_CATEGORY = "Select Item"
 DEFAULT_AMOUNT = 0.0
 
 
-# Create a main window class
 class MainWindow(QWidget):
+    """Main window class for the CashFlow application.
+
+    This class manages the main user interface, interacts with the database for
+    transaction storage, and handles file management operations.
+    """
+
     def __init__(self):
+        """Initializes the main window and UI components."""
         super().__init__()
 
         # Initialize the UI from a separate UI file
@@ -93,9 +99,16 @@ class MainWindow(QWidget):
         self.btn_update.clicked.connect(self.update_info)
         self.btn_clear.clicked.connect(self.clear_form_info)
 
-    def _set_resource_path(self, relative_path) -> str:
-        """
-        Get the absolute path to a resource, works for development and for PyInstaller.
+    def _set_resource_path(self, relative_path: str) -> str:
+        """Gets the absolute path to a resource.
+
+        Works for both development and PyInstaller bundled environments.
+
+        Args:
+            relative_path: The relative path to the resource file.
+
+        Returns:
+            The absolute path to the resource.
         """
         if getattr(sys, "frozen", False):
             base_path = getattr(sys, "_MEIPASS", Path("."))
@@ -105,8 +118,11 @@ class MainWindow(QWidget):
         return os.path.join(base_path, relative_path)
 
     def _set_icons(self, button: QPushButton, path_icon: str):
-        """
-        Set the icon for a given button.
+        """Sets the icon for a given button.
+
+        Args:
+            button: The QPushButton to set the icon for.
+            path_icon: The path to the icon file.
         """
         icon = QIcon()
         path_icon = self._set_resource_path(path_icon)
@@ -114,6 +130,7 @@ class MainWindow(QWidget):
         button.setIcon(icon)
 
     def _load_category(self):
+        """Loads categories from the configuration and populates the category combo box."""
         config = CustomConfig.load()
         if config.category:
             self.category.clear()
@@ -123,24 +140,28 @@ class MainWindow(QWidget):
         self.category.setCurrentText(DEFAULT_CATEGORY)
 
     def disable_buttons(self):
-        # Disable all buttons
+        """Disables all buttons in the UI."""
         for button in self.buttons_list:
             button.setDisabled(True)
 
     def enable_buttons(self):
-        # Enable all buttons
+        """Enables all buttons in the UI."""
         for button in self.buttons_list:
             button.setDisabled(False)
 
     def populate_table(self, transactions: list[Transaction] | None = None):
-        # Retrieves all transactions from the database
+        """Populates the table with transaction data.
+
+        Args:
+            transactions: An optional list of Transaction objects to display.
+                If None, all transactions are fetched from the database.
+        """
         if transactions is None:
             transactions = self.db_manager.select()
 
         self.result_table.setSortingEnabled(False)
         self.result_table.setRowCount(len(transactions))
 
-        # Populate table
         for row, t in enumerate(transactions):
             # name_item = QTableWidgetItem(t.name)
             # Store the transaction's unique ID within the item itself.
@@ -157,7 +178,11 @@ class MainWindow(QWidget):
         self.result_table.setSortingEnabled(True)
 
     def get_info_frame(self) -> Transaction:
-        """Returns a Transaction object with the information from the form."""
+        """Constructs a Transaction object from the current form data.
+
+        Returns:
+            A Transaction object containing the form data.
+        """
         return Transaction(
             name=self.name.text(),
             amount=self.amount.value(),
@@ -169,22 +194,21 @@ class MainWindow(QWidget):
         )
 
     def select_file_path(self):
-        """Opens a dialog box to select one or more files and adds them to the list."""
-        # Use getOpenFileNames to allow multiple selections
-        file_path, _ = QFileDialog.getOpenFileNames(
+        """Opens a file dialog to select files and updates the file path input."""
+        file_paths, _ = QFileDialog.getOpenFileNames(
             self,
             "Select Files",
             "",
             "All Files (*);;PDF Files (*.pdf);;Image Files (*.png *.jpg)",
         )
         # Store the full paths for later use
-        self.file_paths_full = file_path
+        self.file_paths_full = file_paths
 
-        if file_path:
+        if file_paths:
             # Get the string of existing file names from the text box.
             temp_file_paths = self.file_name.text()
             # Extract just the file names from the newly selected full paths.
-            file_name = [os.path.basename(path) for path in file_path]
+            file_name = [os.path.basename(path) for path in file_paths]
             # Append the old file names string to the list of new file names.
             # This works even if the text box was initially empty.
             if temp_file_paths != "":
@@ -193,9 +217,7 @@ class MainWindow(QWidget):
             self.file_name.setText(" ".join(file_name))
 
     def get_file_paths(self):
-        """
-        is necessary to select a row in the table.
-        """
+        """Opens the selected files or their directory in the system file manager."""
         system = platform.system().lower()
 
         if isinstance(self.t_selected, Transaction) and self.t_selected.file_paths:
@@ -217,25 +239,18 @@ class MainWindow(QWidget):
                         except FileNotFoundError:
                             continue
 
-        # ? version of QT where files are opened and the destination folder
-        # for fp in self.file_paths_full:
-        #     QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(os.path.dirname(fp)))
-        #     if os.path.exists(fp):
-        #         QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(fp))
-
     def add_info(self):
-        """Function to add information from the form to the database."""
-
+        """Adds a new transaction to the database based on form inputs."""
         t = self.get_info_frame()
-        if t.name == "":
-            QMessageBox.information(self, "Warning", f"Name not insered")
+        if not t.name:
+            QMessageBox.information(self, "Warning", "Name not inserted")
             return
-        if t.amount == "":
-            QMessageBox.information(self, "Warning", f"Amount not insered")
+        if t.amount == 0.0:
+            QMessageBox.information(self, "Warning", "Amount not inserted")
             return
 
         if t.category == DEFAULT_CATEGORY:
-            QMessageBox.information(self, "Warning", f"Category not selected")
+            QMessageBox.information(self, "Warning", "Category not selected")
             return
 
         if t.file_paths:
@@ -253,20 +268,19 @@ class MainWindow(QWidget):
             QMessageBox.information(
                 self,
                 "Warning",
-                f"Transaction already exists, please update name or amount or date or category",
+                "Transaction already exists, please update name, amount, date, or category",
             )
             return
 
         result = self.db_manager.insert(t)
-        if result == False:
-            QMessageBox.information(self, "Error", f"Insertion failed")
+        if not result:
+            QMessageBox.information(self, "Error", "Insertion failed")
             return
 
         self.populate_table()
 
     def select_info(self):
-        """Function to select and populate information in the form"""
-
+        """Selects a transaction from the table and populates the form."""
         self.t_selected = self.get_row_transaction()
         if isinstance(self.t_selected, Transaction):
             self.name.setText(self.t_selected.name)
@@ -290,7 +304,7 @@ class MainWindow(QWidget):
                 QMessageBox.information(
                     self,
                     "Warning",
-                    "Please select one row information",
+                    "Please select one row",
                     QMessageBox.StandardButton.Ok,
                 )
                 return
@@ -330,12 +344,15 @@ class MainWindow(QWidget):
                         )
                         return
 
-            # to perform the check in update
             self.file_paths_full = []
             self.file_name.setText(self.t_selected.get_file_paths())
 
     def get_row_transaction(self) -> Transaction | None:
-        """Retrieves the Transaction object corresponding to the selected row in the table."""
+        """Retrieves the Transaction object corresponding to the selected row.
+
+        Returns:
+            The Transaction object for the selected row, or None if no selection.
+        """
         selected_row = self.result_table.currentRow()
         if selected_row != -1:
             name_item = self.result_table.item(selected_row, 0)
@@ -364,19 +381,20 @@ class MainWindow(QWidget):
             QMessageBox.information(
                 self,
                 "Warning",
-                "Please select one row information",
+                "Please select one row",
                 QMessageBox.StandardButton.Ok,
             )
             return None
 
     def delete_info(self):
+        """Deletes the selected transaction and its associated files."""
         t_row = self.get_row_transaction()
 
         if isinstance(t_row, Transaction):
             t = self.db_manager.select(
                 t_row.name, t_row.amount, t_row.category, t_row.date
             )
-            if len(t) == 0:
+            if not t:
                 QMessageBox.information(
                     self,
                     "Warning",
@@ -412,11 +430,7 @@ class MainWindow(QWidget):
             return
 
     def update_info(self):
-        """
-        Updates the selected transaction with the information from the form.
-
-        is necessary to select a row in the table before clicking the update button.
-        """
+        """Updates the selected transaction with the information from the form."""
         if self.t_selected is None:
             QMessageBox.information(
                 self,
@@ -427,7 +441,6 @@ class MainWindow(QWidget):
             return
 
         t_new = self.get_info_frame()
-        # initialized with the path name instead of just the name
         t_new.file_paths = self.t_selected.file_paths
 
         if self.t_selected == t_new and self.file_paths_full == []:
@@ -437,7 +450,6 @@ class MainWindow(QWidget):
             return
 
         if isinstance(t_new, Transaction):
-            # if different, it means that it has been filled and modified with select_file_path()
             if self.file_paths_full:
                 t_new.file_paths = self.t_selected.file_paths = (
                     self.file_manager.update_file(
@@ -450,13 +462,11 @@ class MainWindow(QWidget):
                     )
                 )
 
-            # change if the date has changed and the file is present for modification
             if t_new.date != self.t_selected.date and self.t_selected.file_paths:
                 t_new.file_paths = self.file_manager.update_file_date(
                     file_paths=self.t_selected.file_paths, date=str(t_new.date)
                 )
 
-            # I change the category last because that way I move the file last.
             if (
                 t_new.category != self.t_selected.category
                 and self.t_selected.file_paths
@@ -465,11 +475,11 @@ class MainWindow(QWidget):
                     file_paths=self.t_selected.file_paths, dir_label=t_new.category
                 )
 
-                if t_new.file_paths == []:
+                if not t_new.file_paths:
                     QMessageBox.information(
                         self,
                         "Error",
-                        f"File: {self.t_selected.file_paths} already exists",
+                        f"File {self.t_selected.file_paths} already exists",
                         QMessageBox.StandardButton.Ok,
                     )
                     return
@@ -501,6 +511,7 @@ class MainWindow(QWidget):
             return
 
     def search_info(self):
+        """Searches for transactions based on form filters."""
         t = self.get_info_frame()
         results = self.db_manager.select(
             t.name,
@@ -509,9 +520,10 @@ class MainWindow(QWidget):
             t.date if t.date != DEFAULT_DATE.toPyDate() else None,
         )  # t.file_paths if t.file_paths else []
         self.populate_table(results)
-        logger.info(f"Search results {results}")
+        logger.info(f"Search results: {results}")
 
     def clear_form_info(self):
+        """Clears the information in the input form."""
         self.name.clear()
         self.amount.setValue(DEFAULT_AMOUNT)
         self.category.setCurrentText(DEFAULT_CATEGORY)
@@ -523,8 +535,8 @@ class MainWindow(QWidget):
         self.populate_table()
 
 
-# Application entry
 def run():
+    """Runs the CashFlow application."""
     app = QApplication(sys.argv)
 
     window = MainWindow()

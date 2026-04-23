@@ -10,7 +10,10 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class Ui_Form(object):
+    """UI form class for the CashFlow application."""
+
     def setupUi(self, Form):
+        """Sets up the UI components for the form."""
         Form.setObjectName("Form")
         Form.resize(1145, 837)
         Form.setMinimumSize(QtCore.QSize(956, 0))
@@ -464,6 +467,7 @@ class Ui_Form(object):
         QtCore.QMetaObject.connectSlotsByName(Form)
 
     def retranslateUi(self, Form):
+        """Retranslates the UI components."""
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Cash Flow"))
         self.btn_add.setText(_translate("Form", "Add"))
