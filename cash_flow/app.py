@@ -1,28 +1,32 @@
-import sys
-import os
 import datetime
-import subprocess
+import logging
+import os
 import platform
+import subprocess
+import sys
 from pathlib import Path
 
-from PyQt6 import QtCore
-from PyQt6.QtWidgets import (QWidget, 
-                             QApplication, 
-                             QPushButton, 
-                             QMessageBox, 
-                             QTableWidgetItem,
-                             QFileDialog)
-from PyQt6.QtGui import QIcon, QPixmap
-
+from database.sqlite_sqlalchemy import DBManager, Transaction
 from main_ui import Ui_Form
-from database.sqlite_sqlalchemy import (DBManager, 
-                                        Transaction)
-from storage_handler.file_manager import FileManager
+from PyQt6 import QtCore
+from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QMessageBox,
+    QPushButton,
+    QTableWidgetItem,
+    QWidget,
+)
 from storage_handler.config_environment import CustomConfig
+from storage_handler.file_manager import FileManager
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_DATE = QtCore.QDate(9999, 1, 1)
 DEFAULT_CATEGORY = "Select Item"
 DEFAULT_AMOUNT = 0.0
+
 
 # Create a main window class
 class MainWindow(QWidget):
@@ -93,11 +97,11 @@ class MainWindow(QWidget):
         """
         Get the absolute path to a resource, works for development and for PyInstaller.
         """
-        if getattr(sys, 'frozen', False):
-            base_path = getattr(sys, '_MEIPASS', Path("."))
+        if getattr(sys, "frozen", False):
+            base_path = getattr(sys, "_MEIPASS", Path("."))
         else:
             base_path = Path(".")
-        
+
         return os.path.join(base_path, relative_path)
 
     def _set_icons(self, button: QPushButton, path_icon: str):
@@ -115,7 +119,7 @@ class MainWindow(QWidget):
             self.category.clear()
             self.category.addItem(DEFAULT_CATEGORY)
             self.category.addItems(config.category)
-        
+
         self.category.setCurrentText(DEFAULT_CATEGORY)
 
     def disable_buttons(self):
@@ -127,8 +131,8 @@ class MainWindow(QWidget):
         # Enable all buttons
         for button in self.buttons_list:
             button.setDisabled(False)
-    
-    def populate_table(self, transactions : list[Transaction]|None = None):
+
+    def populate_table(self, transactions: list[Transaction] | None = None):
         # Retrieves all transactions from the database
         if transactions is None:
             transactions = self.db_manager.select()
@@ -149,17 +153,21 @@ class MainWindow(QWidget):
             self.result_table.setItem(row, 3, QTableWidgetItem(str(t.date)))
             self.result_table.setItem(row, 4, QTableWidgetItem(t.get_type()))
             self.result_table.setItem(row, 5, QTableWidgetItem(t.get_file_paths()))
-        
+
         self.result_table.setSortingEnabled(True)
 
     def get_info_frame(self) -> Transaction:
         """Returns a Transaction object with the information from the form."""
-        return Transaction(name=self.name.text(),
-                        amount=self.amount.value(),
-                        category=self.category.currentText(),
-                        date=self.date.date().toPyDate(),
-                        file_paths=self.file_name.text().split(" ") if self.file_name.text() else [])
-    
+        return Transaction(
+            name=self.name.text(),
+            amount=self.amount.value(),
+            category=self.category.currentText(),
+            date=self.date.date().toPyDate(),
+            file_paths=self.file_name.text().split(" ")
+            if self.file_name.text()
+            else [],
+        )
+
     def select_file_path(self):
         """Opens a dialog box to select one or more files and adds them to the list."""
         # Use getOpenFileNames to allow multiple selections
@@ -167,10 +175,10 @@ class MainWindow(QWidget):
             self,
             "Select Files",
             "",
-            "All Files (*);;PDF Files (*.pdf);;Image Files (*.png *.jpg)"
+            "All Files (*);;PDF Files (*.pdf);;Image Files (*.png *.jpg)",
         )
         # Store the full paths for later use
-        self.file_paths_full = file_path 
+        self.file_paths_full = file_path
 
         if file_path:
             # Get the string of existing file names from the text box.
@@ -179,7 +187,7 @@ class MainWindow(QWidget):
             file_name = [os.path.basename(path) for path in file_path]
             # Append the old file names string to the list of new file names.
             # This works even if the text box was initially empty.
-            if temp_file_paths != "" :
+            if temp_file_paths != "":
                 file_name.append(temp_file_paths)
             # Join all names into a single space-separated string and update the text box.
             self.file_name.setText(" ".join(file_name))
@@ -193,7 +201,7 @@ class MainWindow(QWidget):
         if isinstance(self.t_selected, Transaction) and self.t_selected.file_paths:
             for file_path in self.t_selected.file_paths:
                 if not os.path.exists(file_path):
-                    print(f"File not found: {file_path}")
+                    logger.error(f"File not found: {file_path}")
                     continue
 
                 folder_path = os.path.dirname(file_path)
@@ -208,59 +216,53 @@ class MainWindow(QWidget):
                             break
                         except FileNotFoundError:
                             continue
-        
+
         # ? version of QT where files are opened and the destination folder
         # for fp in self.file_paths_full:
         #     QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(os.path.dirname(fp)))
         #     if os.path.exists(fp):
         #         QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(fp))
-             
+
     def add_info(self):
         """Function to add information from the form to the database."""
 
         t = self.get_info_frame()
         if t.name == "":
-            QMessageBox.information(self,
-                                    "Warning",
-                                    f"Name not insered")
+            QMessageBox.information(self, "Warning", f"Name not insered")
             return
         if t.amount == "":
-            QMessageBox.information(self,
-                        "Warning",
-                        f"Amount not insered")
+            QMessageBox.information(self, "Warning", f"Amount not insered")
             return
-        
+
         if t.category == DEFAULT_CATEGORY:
-            QMessageBox.information(self,
-                        "Warning",
-                        f"Category not selected")
+            QMessageBox.information(self, "Warning", f"Category not selected")
             return
-        
+
         if t.file_paths:
             file_path_new = []
             for file_path in self.file_paths_full:
-                file_path_new.append(self.file_manager.save_custom_file(
-                                                        file_path, 
-                                                        str(t.date), 
-                                                        t.category))
+                file_path_new.append(
+                    self.file_manager.save_custom_file(
+                        file_path, str(t.date), t.category
+                    )
+                )
             t.file_paths = file_path_new
 
         select = self.db_manager.select(t.name, t.amount, t.category, t.date)
         if len(select) > 0:
-            QMessageBox.information(self,
-                        "Warning",
-                        f"Transaction already exists, please update name or amount or date or category")
+            QMessageBox.information(
+                self,
+                "Warning",
+                f"Transaction already exists, please update name or amount or date or category",
+            )
             return
 
         result = self.db_manager.insert(t)
-        if result == False: 
-            QMessageBox.information(self,
-                        "Error",
-                        f"Insertion failed")
+        if result == False:
+            QMessageBox.information(self, "Error", f"Insertion failed")
             return
-        
-        self.populate_table()
 
+        self.populate_table()
 
     def select_info(self):
         """Function to select and populate information in the form"""
@@ -270,40 +272,62 @@ class MainWindow(QWidget):
             self.name.setText(self.t_selected.name)
             self.amount.setValue(self.t_selected.amount)
             self.category.setCurrentText(self.t_selected.category)
-            self.date.setDate(QtCore.QDate(self.t_selected.date.year,
-                                           self.t_selected.date.month,
-                                           self.t_selected.date.day))
-        
-            t_temp = self.db_manager.select(self.t_selected.name, 
-                                            self.t_selected.amount, 
-                                            self.t_selected.category, 
-                                            self.t_selected.date)
+            self.date.setDate(
+                QtCore.QDate(
+                    self.t_selected.date.year,
+                    self.t_selected.date.month,
+                    self.t_selected.date.day,
+                )
+            )
+
+            t_temp = self.db_manager.select(
+                self.t_selected.name,
+                self.t_selected.amount,
+                self.t_selected.category,
+                self.t_selected.date,
+            )
             if len(t_temp) != 1:
-                QMessageBox.information(self, "Warning", "Please select one row information",
-                                QMessageBox.StandardButton.Ok)
+                QMessageBox.information(
+                    self,
+                    "Warning",
+                    "Please select one row information",
+                    QMessageBox.StandardButton.Ok,
+                )
                 return
-            
+
             self.t_selected = t_temp[0]
-            
+
             if t_temp[0].file_paths:
-                self.file_paths_full = self.file_manager.check_file_paths(t_temp[0].file_paths)
+                self.file_paths_full = self.file_manager.check_file_paths(
+                    t_temp[0].file_paths
+                )
                 # Converting lists to sets removes duplicates and ignores order.
                 # The comparison then checks for equality of the unique elements
                 if set(self.file_paths_full) != set(t_temp[0].file_paths):
-                    updated = self.db_manager.update(id=t_temp[0].id, 
-                                                    name=t_temp[0].name,
-                                                    amount=t_temp[0].amount,
-                                                    category=t_temp[0].category,
-                                                    date=t_temp[0].date,
-                                                    file_paths=self.file_paths_full)
+                    updated = self.db_manager.update(
+                        id=t_temp[0].id,
+                        name=t_temp[0].name,
+                        amount=t_temp[0].amount,
+                        category=t_temp[0].category,
+                        date=t_temp[0].date,
+                        file_paths=self.file_paths_full,
+                    )
                     if updated:
-                        QMessageBox.information(self, "Success", "Transaction updated successfully",
-                                                QMessageBox.StandardButton.Ok)
+                        QMessageBox.information(
+                            self,
+                            "Success",
+                            "Transaction updated successfully",
+                            QMessageBox.StandardButton.Ok,
+                        )
                         self.t_selected.file_paths = self.file_paths_full
                         self.populate_table()
                     else:
-                        QMessageBox.information(self, "Error", "Update failed",
-                                                QMessageBox.StandardButton.Ok)
+                        QMessageBox.information(
+                            self,
+                            "Error",
+                            "Update failed",
+                            QMessageBox.StandardButton.Ok,
+                        )
                         return
 
             # to perform the check in update
@@ -329,27 +353,36 @@ class MainWindow(QWidget):
             file_paths_item = self.result_table.item(selected_row, 5)
             file_paths = file_paths_item.text() if file_paths_item else ""
 
-            return Transaction(name=name,
-                               amount=float(amount),
-                               category=category,
-                               date=datetime.date.fromisoformat(date),
-                               file_paths=file_paths.split(" ") if file_paths else [])
+            return Transaction(
+                name=name,
+                amount=float(amount),
+                category=category,
+                date=datetime.date.fromisoformat(date),
+                file_paths=file_paths.split(" ") if file_paths else [],
+            )
         else:
-            QMessageBox.information(self, "Warning", "Please select one row information",
-                                    QMessageBox.StandardButton.Ok)
-            return None                                                                                             
+            QMessageBox.information(
+                self,
+                "Warning",
+                "Please select one row information",
+                QMessageBox.StandardButton.Ok,
+            )
+            return None
 
     def delete_info(self):
         t_row = self.get_row_transaction()
 
         if isinstance(t_row, Transaction):
-            t = self.db_manager.select(t_row.name, 
-                                        t_row.amount, 
-                                        t_row.category, 
-                                        t_row.date)
+            t = self.db_manager.select(
+                t_row.name, t_row.amount, t_row.category, t_row.date
+            )
             if len(t) == 0:
-                QMessageBox.information(self, "Warning", "No transaction found to delete",
-                                        QMessageBox.StandardButton.Ok)
+                QMessageBox.information(
+                    self,
+                    "Warning",
+                    "No transaction found to delete",
+                    QMessageBox.StandardButton.Ok,
+                )
                 return
             elif len(t) == 1:
                 self.db_manager.delete(t[0].id)
@@ -358,15 +391,23 @@ class MainWindow(QWidget):
                     for file_path in t[0].file_paths:
                         self.file_manager.delete_file(file_path)
 
-                QMessageBox.information(self, "Success", "Transaction deleted successfully",
-                                        QMessageBox.StandardButton.Ok)
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    "Transaction deleted successfully",
+                    QMessageBox.StandardButton.Ok,
+                )
                 self.populate_table()
                 return
             elif len(t) > 1:
-                QMessageBox.information(self, "Warning", "Multiple transactions found, please refine your search",
-                                        QMessageBox.StandardButton.Ok)
+                QMessageBox.information(
+                    self,
+                    "Warning",
+                    "Multiple transactions found, please refine your search",
+                    QMessageBox.StandardButton.Ok,
+                )
                 return
-        
+
         else:
             return
 
@@ -377,8 +418,12 @@ class MainWindow(QWidget):
         is necessary to select a row in the table before clicking the update button.
         """
         if self.t_selected is None:
-            QMessageBox.information(self, "Warning", "Please select a transaction to update",
-                                    QMessageBox.StandardButton.Ok)
+            QMessageBox.information(
+                self,
+                "Warning",
+                "Please select a transaction to update",
+                QMessageBox.StandardButton.Ok,
+            )
             return
 
         t_new = self.get_info_frame()
@@ -386,64 +431,85 @@ class MainWindow(QWidget):
         t_new.file_paths = self.t_selected.file_paths
 
         if self.t_selected == t_new and self.file_paths_full == []:
-            QMessageBox.information(self, "Warning", "No changes to update",
-                                    QMessageBox.StandardButton.Ok)
+            QMessageBox.information(
+                self, "Warning", "No changes to update", QMessageBox.StandardButton.Ok
+            )
             return
 
         if isinstance(t_new, Transaction):
             # if different, it means that it has been filled and modified with select_file_path()
             if self.file_paths_full:
-                t_new.file_paths = self.t_selected.file_paths = self.file_manager.update_file(
-                    new_file_paths=self.file_paths_full,
-                    old_file_paths=self.t_selected.file_paths if self.t_selected.file_paths else [],
-                    date=str(self.t_selected.date),
-                    dir_label=self.t_selected.category)
-            
+                t_new.file_paths = self.t_selected.file_paths = (
+                    self.file_manager.update_file(
+                        new_file_paths=self.file_paths_full,
+                        old_file_paths=self.t_selected.file_paths
+                        if self.t_selected.file_paths
+                        else [],
+                        date=str(self.t_selected.date),
+                        dir_label=self.t_selected.category,
+                    )
+                )
+
             # change if the date has changed and the file is present for modification
-            if t_new.date != self.t_selected.date and self.t_selected.file_paths: 
-                    t_new.file_paths = self.file_manager.update_file_date(
-                                                            file_paths=self.t_selected.file_paths, 
-                                                            date=str(t_new.date))
-            
+            if t_new.date != self.t_selected.date and self.t_selected.file_paths:
+                t_new.file_paths = self.file_manager.update_file_date(
+                    file_paths=self.t_selected.file_paths, date=str(t_new.date)
+                )
+
             # I change the category last because that way I move the file last.
-            if t_new.category != self.t_selected.category and self.t_selected.file_paths:
+            if (
+                t_new.category != self.t_selected.category
+                and self.t_selected.file_paths
+            ):
                 t_new.file_paths = self.file_manager.update_file_category(
-                                                        file_paths=self.t_selected.file_paths, 
-                                                        dir_label=t_new.category)
-                
+                    file_paths=self.t_selected.file_paths, dir_label=t_new.category
+                )
+
                 if t_new.file_paths == []:
-                    QMessageBox.information(self, "Error", f"File: {self.t_selected.file_paths} already exists",
-                                    QMessageBox.StandardButton.Ok)
+                    QMessageBox.information(
+                        self,
+                        "Error",
+                        f"File: {self.t_selected.file_paths} already exists",
+                        QMessageBox.StandardButton.Ok,
+                    )
                     return
 
-            updated = self.db_manager.update(id=self.t_selected.id,
-                                             name=t_new.name,
-                                             amount=t_new.amount,
-                                             category=t_new.category,
-                                             date=t_new.date,
-                                             file_paths=t_new.file_paths)
+            updated = self.db_manager.update(
+                id=self.t_selected.id,
+                name=t_new.name,
+                amount=t_new.amount,
+                category=t_new.category,
+                date=t_new.date,
+                file_paths=t_new.file_paths,
+            )
             if updated:
-                QMessageBox.information(self, "Success", "Transaction updated successfully",
-                                        QMessageBox.StandardButton.Ok)
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    "Transaction updated successfully",
+                    QMessageBox.StandardButton.Ok,
+                )
                 self.t_selected = None
                 self.populate_table()
                 return
             else:
-                    QMessageBox.information(self, "Error", "Update failed",
-                                            QMessageBox.StandardButton.Ok)
-                    return
+                QMessageBox.information(
+                    self, "Error", "Update failed", QMessageBox.StandardButton.Ok
+                )
+                return
         else:
             return
 
     def search_info(self):
         t = self.get_info_frame()
-        results = self.db_manager.select(t.name, 
-                                         t.amount if t.amount != DEFAULT_AMOUNT else None, 
-                                         t.category if t.category != DEFAULT_CATEGORY else None, 
-                                         t.date if t.date != DEFAULT_DATE.toPyDate() else None, 
-                                         ) # t.file_paths if t.file_paths else []
+        results = self.db_manager.select(
+            t.name,
+            t.amount if t.amount != DEFAULT_AMOUNT else None,
+            t.category if t.category != DEFAULT_CATEGORY else None,
+            t.date if t.date != DEFAULT_DATE.toPyDate() else None,
+        )  # t.file_paths if t.file_paths else []
         self.populate_table(results)
-        print(f"Search results {results}")
+        logger.info(f"Search results {results}")
 
     def clear_form_info(self):
         self.name.clear()
@@ -466,5 +532,12 @@ def run():
 
     sys.exit(app.exec())
 
+
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
     run()

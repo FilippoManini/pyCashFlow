@@ -1,7 +1,8 @@
-import unittest
 import os
+import unittest
 
 from cash_flow.storage_handler.config_environment import CustomConfig
+
 
 class TestCustomSetting(unittest.TestCase):
     def setUp(self) -> None:
